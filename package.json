@@ -1,0 +1,68 @@
+{
+  "name": "devsecops-agent-vscode",
+  "displayName": "DevSecOps Agent",
+  "description": "VS Code extension MVP for running DevSecOps Agent workspace scans.",
+  "version": "0.0.1",
+  "publisher": "hhs-technology-group",
+  "engines": {
+    "vscode": "^1.88.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:devsecopsAgent.results",
+    "onCommand:devsecopsAgent.scanWorkspace",
+    "onCommand:devsecopsAgent.refreshResults",
+    "onCommand:devsecopsAgent.openFinding"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "devsecopsAgent.scanWorkspace",
+        "title": "DevSecOps Agent: Scan Workspace",
+        "category": "DevSecOps Agent"
+      },
+      {
+        "command": "devsecopsAgent.refreshResults",
+        "title": "DevSecOps Agent: Refresh Results",
+        "category": "DevSecOps Agent",
+        "icon": "$(refresh)"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "devsecopsAgent.results",
+          "name": "DevSecOps Agent"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "devsecopsAgent.results",
+        "contents": "Run DevSecOps Agent: Scan Workspace to load findings."
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "devsecopsAgent.refreshResults",
+          "when": "view == devsecopsAgent.results",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.88.0",
+    "typescript": "^5.4.5"
+  }
+}
