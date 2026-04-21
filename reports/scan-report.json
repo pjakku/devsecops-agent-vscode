@@ -1,0 +1,163 @@
+{
+  "target_path": "C:\\Users\\PraveenJakku\\OneDrive - HHS Technology Group\\Desktop\\sample-vuln-app",
+  "started_at": "2026-04-21T02:18:05.767334+00:00",
+  "completed_at": "2026-04-21T02:18:05.775008+00:00",
+  "total_files": 4,
+  "counts_by_extension": {
+    ".py": 1,
+    ".txt": 1,
+    ".yaml": 1,
+    "<no_extension>": 1
+  },
+  "project_categories": {
+    "source_code": [
+      "app.py"
+    ],
+    "config": [
+      "deployment.yaml"
+    ],
+    "manifests": [
+      "requirements.txt"
+    ],
+    "dependencies": [
+      "requirements.txt"
+    ],
+    "secrets_related": [
+      ".env"
+    ]
+  },
+  "scanners_run": [
+    "source_scanner",
+    "config_scanner",
+    "manifest_scanner",
+    "dependency_scanner",
+    "semgrep"
+  ],
+  "fail_on": "high",
+  "total_findings": 5,
+  "scanner_executions": [
+    {
+      "scanner_name": "source_scanner",
+      "status": "ran",
+      "command": "internal",
+      "configs_used": [],
+      "findings_count": 1,
+      "message": "Internal placeholder scanner completed successfully.",
+      "stderr": ""
+    },
+    {
+      "scanner_name": "config_scanner",
+      "status": "ran",
+      "command": "internal",
+      "configs_used": [],
+      "findings_count": 0,
+      "message": "Internal placeholder scanner completed successfully.",
+      "stderr": ""
+    },
+    {
+      "scanner_name": "manifest_scanner",
+      "status": "ran",
+      "command": "internal",
+      "configs_used": [],
+      "findings_count": 3,
+      "message": "Internal placeholder scanner completed successfully.",
+      "stderr": ""
+    },
+    {
+      "scanner_name": "dependency_scanner",
+      "status": "ran",
+      "command": "internal",
+      "configs_used": [],
+      "findings_count": 1,
+      "message": "Internal placeholder scanner completed successfully.",
+      "stderr": ""
+    },
+    {
+      "scanner_name": "semgrep",
+      "status": "skipped",
+      "command": "semgrep scan --json --quiet --config p/python --config p/kubernetes C:\\Users\\PraveenJakku\\OneDrive - HHS Technology Group\\Desktop\\sample-vuln-app",
+      "configs_used": [
+        "p/python",
+        "p/kubernetes"
+      ],
+      "findings_count": 0,
+      "message": "Semgrep not found on PATH; skipping external SAST scan.",
+      "stderr": ""
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "396bfb9fc2b1",
+      "scanner_name": "source_scanner",
+      "category": "secrets",
+      "severity": "high",
+      "title": "Suspicious secrets-related filename detected",
+      "description": "The filename suggests the file may contain credentials or private key material.",
+      "file_path": ".env",
+      "line_number": null,
+      "recommendation": "Review the file contents and remove secrets from source-controlled locations."
+    },
+    {
+      "finding_id": "e5e88e3b6c65",
+      "scanner_name": "manifest_scanner",
+      "category": "manifest",
+      "severity": "high",
+      "title": "Container configured to run as root",
+      "description": "A Kubernetes-style manifest contains a potentially risky configuration.",
+      "file_path": "deployment.yaml",
+      "line_number": 13,
+      "recommendation": "Set a non-root user in the workload security context."
+    },
+    {
+      "finding_id": "c6f4dbeb12be",
+      "scanner_name": "manifest_scanner",
+      "category": "manifest",
+      "severity": "high",
+      "title": "Privileged container setting detected",
+      "description": "A Kubernetes-style manifest contains a potentially risky configuration.",
+      "file_path": "deployment.yaml",
+      "line_number": 12,
+      "recommendation": "Avoid privileged containers unless strictly required and documented."
+    },
+    {
+      "finding_id": "827517dc57b6",
+      "scanner_name": "manifest_scanner",
+      "category": "manifest",
+      "severity": "medium",
+      "title": "Container image uses latest tag",
+      "description": "A Kubernetes-style manifest contains a potentially risky configuration.",
+      "file_path": "deployment.yaml",
+      "line_number": 10,
+      "recommendation": "Pin container images to immutable versions instead of using the latest tag."
+    },
+    {
+      "finding_id": "c1d30cc66db6",
+      "scanner_name": "dependency_scanner",
+      "category": "dependency",
+      "severity": "info",
+      "title": "Dependency manifest detected",
+      "description": "Dependency analysis should be run for this manifest in a later integration step.",
+      "file_path": "requirements.txt",
+      "line_number": null,
+      "recommendation": "Add dependency vulnerability and license scanning when external tool integrations are enabled."
+    }
+  ],
+  "severity_summary": {
+    "critical": 0,
+    "high": 3,
+    "medium": 1,
+    "low": 0,
+    "info": 1
+  },
+  "category_summary": {
+    "dependency": 1,
+    "manifest": 3,
+    "secrets": 1
+  },
+  "scanner_summary": {
+    "dependency_scanner": 1,
+    "manifest_scanner": 3,
+    "source_scanner": 1
+  },
+  "overall_status": "FAIL"
+}

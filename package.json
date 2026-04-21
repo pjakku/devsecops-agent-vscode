@@ -14,6 +14,8 @@
     "onView:devsecopsAgent.results",
     "onCommand:devsecopsAgent.scanWorkspace",
     "onCommand:devsecopsAgent.refreshResults",
+    "onCommand:devsecopsAgent.showOnlySemgrepFindings",
+    "onCommand:devsecopsAgent.showAllFindings",
     "onCommand:devsecopsAgent.openFinding"
   ],
   "main": "./out/extension.js",
@@ -22,13 +24,26 @@
       {
         "command": "devsecopsAgent.scanWorkspace",
         "title": "DevSecOps Agent: Scan Workspace",
-        "category": "DevSecOps Agent"
+        "category": "DevSecOps Agent",
+        "icon": "$(play)"
       },
       {
         "command": "devsecopsAgent.refreshResults",
         "title": "DevSecOps Agent: Refresh Results",
         "category": "DevSecOps Agent",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "devsecopsAgent.showOnlySemgrepFindings",
+        "title": "DevSecOps Agent: Show Only SAST Findings",
+        "category": "DevSecOps Agent",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "devsecopsAgent.showAllFindings",
+        "title": "DevSecOps Agent: Show All Findings",
+        "category": "DevSecOps Agent",
+        "icon": "$(list-tree)"
       }
     ],
     "views": {
@@ -42,15 +57,30 @@
     "viewsWelcome": [
       {
         "view": "devsecopsAgent.results",
-        "contents": "Run DevSecOps Agent: Scan Workspace to load findings."
+        "contents": "[Run Scan](command:devsecopsAgent.scanWorkspace)\n\n[Show All Findings](command:devsecopsAgent.showAllFindings)\n\n[Show Only SAST Findings](command:devsecopsAgent.showOnlySemgrepFindings)"
       }
     ],
     "menus": {
       "view/title": [
         {
+          "command": "devsecopsAgent.scanWorkspace",
+          "when": "view == devsecopsAgent.results",
+          "group": "navigation@1"
+        },
+        {
           "command": "devsecopsAgent.refreshResults",
           "when": "view == devsecopsAgent.results",
-          "group": "navigation"
+          "group": "navigation@2"
+        },
+        {
+          "command": "devsecopsAgent.showAllFindings",
+          "when": "view == devsecopsAgent.results",
+          "group": "navigation@3"
+        },
+        {
+          "command": "devsecopsAgent.showOnlySemgrepFindings",
+          "when": "view == devsecopsAgent.results",
+          "group": "navigation@4"
         }
       ]
     }

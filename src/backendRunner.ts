@@ -60,6 +60,14 @@ export class BackendRunner {
     return path.join(this.extensionContext.extensionPath, "backend", executableName);
   }
 
+  resolveBundledSemgrepExecutablePath(): string | undefined {
+    if (process.platform !== "win32") {
+      return undefined;
+    }
+
+    return path.join(this.extensionContext.extensionPath, "backend", "semgrep", "win", "semgrep.exe");
+  }
+
   private async ensureBackendExists(backendPath: string): Promise<void> {
     try {
       await fs.access(backendPath);
@@ -73,6 +81,7 @@ export class BackendRunner {
   private executeScan(backendPath: string, workspacePath: string, reportPath: string): Promise<void> {
     const args = ["scan", workspacePath, "--json-out", reportPath];
     const command = formatCommand(backendPath, args);
+    const env = this.buildBackendEnvironment();
 
     return new Promise((resolve, reject) => {
       childProcess.execFile(
@@ -80,6 +89,7 @@ export class BackendRunner {
         args,
         {
           cwd: workspacePath,
+          env,
           windowsHide: true,
           timeout: 10 * 60 * 1000
         },
@@ -111,6 +121,19 @@ export class BackendRunner {
         }
       );
     });
+  }
+
+  private buildBackendEnvironment(): NodeJS.ProcessEnv {
+    const env = { ...process.env };
+    const semgrepPath = this.resolveBundledSemgrepExecutablePath();
+    if (!semgrepPath) {
+      return env;
+    }
+
+    env.DEVSECOPS_AGENT_SEMGREP_PATH = semgrepPath;
+    env.SEMGREP_PATH = semgrepPath;
+    env.PATH = prependPath(path.dirname(semgrepPath), env.PATH);
+    return env;
   }
 
   private async readReport(reportPath: string): Promise<ScanReport> {
@@ -212,4 +235,8 @@ function snippet(label: string, value: string): string | undefined {
   }
 
   return `${label}: ${text.slice(0, 800)}`;
+}
+
+function prependPath(entry: string, currentPath: string | undefined): string {
+  return currentPath ? `${entry}${path.delimiter}${currentPath}` : entry;
 }

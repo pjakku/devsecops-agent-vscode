@@ -17,6 +17,8 @@ export function activate(context: vscode.ExtensionContext): void {
     resultsView,
     vscode.commands.registerCommand("devsecopsAgent.scanWorkspace", () => scanWorkspace(backendRunner, findingsProvider)),
     vscode.commands.registerCommand("devsecopsAgent.refreshResults", () => scanWorkspace(backendRunner, findingsProvider)),
+    vscode.commands.registerCommand("devsecopsAgent.showOnlySemgrepFindings", () => findingsProvider.showSemgrepOnly()),
+    vscode.commands.registerCommand("devsecopsAgent.showAllFindings", () => findingsProvider.showAll()),
     vscode.commands.registerCommand("devsecopsAgent.openFinding", (finding: unknown) => openFinding(backendRunner, finding))
   );
 }

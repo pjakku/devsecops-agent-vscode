@@ -9,6 +9,7 @@ export class FindingsProvider implements vscode.TreeDataProvider<ResultNode> {
   readonly onDidChangeTreeData = this.changed.event;
 
   private findings: Finding[] = [];
+  private showOnlySemgrep = false;
   private workspaceFolder?: vscode.WorkspaceFolder;
 
   setResults(findings: Finding[], workspaceFolder: vscode.WorkspaceFolder): void {
@@ -19,6 +20,16 @@ export class FindingsProvider implements vscode.TreeDataProvider<ResultNode> {
 
   clear(): void {
     this.findings = [];
+    this.changed.fire();
+  }
+
+  showSemgrepOnly(): void {
+    this.showOnlySemgrep = true;
+    this.changed.fire();
+  }
+
+  showAll(): void {
+    this.showOnlySemgrep = false;
     this.changed.fire();
   }
 
@@ -48,12 +59,13 @@ export class FindingsProvider implements vscode.TreeDataProvider<ResultNode> {
       return element.findings.map((finding) => new FindingNode(finding));
     }
 
-    if (this.findings.length === 0) {
+    const visibleFindings = this.visibleFindings();
+    if (visibleFindings.length === 0) {
       return [];
     }
 
     const grouped = new Map<Severity, Finding[]>();
-    for (const finding of this.findings) {
+    for (const finding of visibleFindings) {
       const severity = normalizeSeverity(finding.severity);
       const existing = grouped.get(severity) ?? [];
       existing.push(finding);
@@ -66,7 +78,7 @@ export class FindingsProvider implements vscode.TreeDataProvider<ResultNode> {
   }
 
   private descriptionFor(finding: Finding): string | undefined {
-    const parts = [finding.scanner, finding.category, this.displayPath(finding.filePath)].filter(Boolean);
+    const parts = [scannerLabel(finding), finding.category, this.displayPath(finding.filePath)].filter(Boolean);
     return parts.length > 0 ? parts.join(" - ") : undefined;
   }
 
@@ -76,7 +88,7 @@ export class FindingsProvider implements vscode.TreeDataProvider<ResultNode> {
     tooltip.appendMarkdown(`Severity: ${severityLabel(normalizeSeverity(finding.severity))}\n\n`);
 
     const details = [
-      ["Scanner", finding.scanner],
+      ["Scanner", scannerLabel(finding)],
       ["Category", finding.category],
       ["File", this.displayPath(finding.filePath)],
       ["Line", finding.line?.toString()]
@@ -106,6 +118,14 @@ export class FindingsProvider implements vscode.TreeDataProvider<ResultNode> {
 
     return path.relative(this.workspaceFolder.uri.fsPath, filePath) || filePath;
   }
+
+  private visibleFindings(): Finding[] {
+    if (!this.showOnlySemgrep) {
+      return this.findings;
+    }
+
+    return this.findings.filter(isSemgrepFinding);
+  }
 }
 
 export type ResultNode = SeverityNode | FindingNode;
@@ -132,4 +152,17 @@ export function normalizeSeverity(severity: string | undefined): Severity {
 
 function severityLabel(severity: Severity): string {
   return severity.charAt(0).toUpperCase() + severity.slice(1);
+}
+
+function scannerLabel(finding: Finding): string | undefined {
+  const scanner = finding.scanner_name ?? finding.scanner;
+  if (!scanner) {
+    return undefined;
+  }
+
+  return scanner.toLowerCase() === "semgrep" ? "SAST" : scanner;
+}
+
+function isSemgrepFinding(finding: Finding): boolean {
+  return (finding.scanner_name ?? finding.scanner)?.toLowerCase() === "semgrep";
 }
