@@ -2,7 +2,7 @@
   "name": "devsecops-agent-vscode",
   "displayName": "DevSecOps Agent",
   "description": "VS Code extension MVP for running DevSecOps Agent workspace scans.",
-  "version": "0.0.1",
+  "version": "0.4.0",
   "publisher": "hhs-technology-group",
   "engines": {
     "vscode": "^1.88.0"
@@ -14,8 +14,16 @@
     "onView:devsecopsAgent.results",
     "onCommand:devsecopsAgent.scanWorkspace",
     "onCommand:devsecopsAgent.refreshResults",
+    "onCommand:devsecopsAgent.refresh",
     "onCommand:devsecopsAgent.showOnlySemgrepFindings",
+    "onCommand:devsecopsAgent.showSast",
     "onCommand:devsecopsAgent.showAllFindings",
+    "onCommand:devsecopsAgent.showAll",
+    "onCommand:devsecopsAgent.showSecrets",
+    "onCommand:devsecopsAgent.showScript",
+    "onCommand:devsecopsAgent.showManifest",
+    "onCommand:devsecopsAgent.showConfig",
+    "onCommand:devsecopsAgent.showDependency",
     "onCommand:devsecopsAgent.openFinding"
   ],
   "main": "./out/extension.js",
@@ -44,6 +52,36 @@
         "title": "DevSecOps Agent: Show All Findings",
         "category": "DevSecOps Agent",
         "icon": "$(list-tree)"
+      },
+      {
+        "command": "devsecopsAgent.showSecrets",
+        "title": "DevSecOps Agent: Show Only Secrets Findings",
+        "category": "DevSecOps Agent",
+        "icon": "$(key)"
+      },
+      {
+        "command": "devsecopsAgent.showScript",
+        "title": "DevSecOps Agent: Show Only Script Findings",
+        "category": "DevSecOps Agent",
+        "icon": "$(code)"
+      },
+      {
+        "command": "devsecopsAgent.showManifest",
+        "title": "DevSecOps Agent: Show Only Kubernetes/Manifest Findings",
+        "category": "DevSecOps Agent",
+        "icon": "$(package)"
+      },
+      {
+        "command": "devsecopsAgent.showConfig",
+        "title": "DevSecOps Agent: Show Only Config Findings",
+        "category": "DevSecOps Agent",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "devsecopsAgent.showDependency",
+        "title": "DevSecOps Agent: Show Only Dependency Findings",
+        "category": "DevSecOps Agent",
+        "icon": "$(extensions)"
       }
     ],
     "views": {
@@ -57,10 +95,40 @@
     "viewsWelcome": [
       {
         "view": "devsecopsAgent.results",
-        "contents": "[Run Scan](command:devsecopsAgent.scanWorkspace)\n\n[Show All Findings](command:devsecopsAgent.showAllFindings)\n\n[Show Only SAST Findings](command:devsecopsAgent.showOnlySemgrepFindings)"
+        "when": "!devsecopsAgent.hasScanned && !devsecopsAgent.isScanning",
+        "contents": "[Run Scan](command:devsecopsAgent.scanWorkspace)"
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "devsecopsAgent.scanWorkspace"
+        },
+        {
+          "command": "devsecopsAgent.refreshResults"
+        },
+        {
+          "command": "devsecopsAgent.showAllFindings"
+        },
+        {
+          "command": "devsecopsAgent.showOnlySemgrepFindings"
+        },
+        {
+          "command": "devsecopsAgent.showSecrets"
+        },
+        {
+          "command": "devsecopsAgent.showScript"
+        },
+        {
+          "command": "devsecopsAgent.showManifest"
+        },
+        {
+          "command": "devsecopsAgent.showConfig"
+        },
+        {
+          "command": "devsecopsAgent.showDependency"
+        }
+      ],
       "view/title": [
         {
           "command": "devsecopsAgent.scanWorkspace",
@@ -80,7 +148,32 @@
         {
           "command": "devsecopsAgent.showOnlySemgrepFindings",
           "when": "view == devsecopsAgent.results",
-          "group": "navigation@4"
+          "group": "inline@1"
+        },
+        {
+          "command": "devsecopsAgent.showSecrets",
+          "when": "view == devsecopsAgent.results",
+          "group": "inline@2"
+        },
+        {
+          "command": "devsecopsAgent.showScript",
+          "when": "view == devsecopsAgent.results",
+          "group": "inline@3"
+        },
+        {
+          "command": "devsecopsAgent.showManifest",
+          "when": "view == devsecopsAgent.results",
+          "group": "filters@4"
+        },
+        {
+          "command": "devsecopsAgent.showConfig",
+          "when": "view == devsecopsAgent.results",
+          "group": "filters@5"
+        },
+        {
+          "command": "devsecopsAgent.showDependency",
+          "when": "view == devsecopsAgent.results",
+          "group": "filters@6"
         }
       ]
     }

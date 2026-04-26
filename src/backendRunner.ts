@@ -1,4 +1,5 @@
 import * as childProcess from "child_process";
+import * as fsSync from "fs";
 import * as fs from "fs/promises";
 import * as os from "os";
 import * as path from "path";
@@ -14,6 +15,8 @@ export interface Finding {
   scanner?: string;
   scanner_name?: string;
   category?: string;
+  description?: string;
+  recommendation?: string;
   filePath?: string;
   file_path?: string;
   line?: number;
@@ -21,8 +24,22 @@ export interface Finding {
   message?: string;
 }
 
+export interface ScannerExecution {
+  scannerName: string;
+  status: string;
+  command?: string;
+  message?: string;
+}
+
 export interface ScanReport {
   findings: Finding[];
+  totalFindings: number;
+  scannerExecutions: ScannerExecution[];
+  reportPath: string;
+  backendPath: string;
+  semgrepPath?: string;
+  gitleaksPath?: string;
+  exitCode: number;
 }
 
 export class BackendRunnerError extends Error {
@@ -41,9 +58,17 @@ export class BackendRunner {
     await this.ensureBackendExists(backendPath);
 
     const reportPath = path.join(os.tmpdir(), `devsecops-agent-report-${Date.now()}.json`);
-    await this.executeScan(backendPath, workspaceFolder.uri.fsPath, reportPath);
+    const execution = await this.executeScan(backendPath, workspaceFolder.uri.fsPath, reportPath);
+    const report = await this.readReport(reportPath);
 
-    return this.readReport(reportPath);
+    return {
+      ...report,
+      reportPath,
+      backendPath,
+      semgrepPath: execution.semgrepPath,
+      gitleaksPath: execution.gitleaksPath,
+      exitCode: execution.exitCode
+    };
   }
 
   getWorkspaceFolder(): vscode.WorkspaceFolder {
@@ -56,16 +81,15 @@ export class BackendRunner {
   }
 
   resolveBackendExecutablePath(): string {
-    const executableName = process.platform === "win32" ? "devsecops-agent.exe" : "devsecops-agent";
-    return path.join(this.extensionContext.extensionPath, "backend", executableName);
+    return path.join(this.extensionContext.extensionPath, "backend", this.executableFileName("devsecops-agent"));
   }
 
   resolveBundledSemgrepExecutablePath(): string | undefined {
-    if (process.platform !== "win32") {
-      return undefined;
-    }
+    return this.resolveBundledToolExecutablePath("semgrep", "semgrep");
+  }
 
-    return path.join(this.extensionContext.extensionPath, "backend", "semgrep", "win", "semgrep.exe");
+  resolveBundledGitleaksExecutablePath(): string | undefined {
+    return this.resolveBundledToolExecutablePath("gitleaks", "gitleaks");
   }
 
   private async ensureBackendExists(backendPath: string): Promise<void> {
@@ -78,10 +102,14 @@ export class BackendRunner {
     }
   }
 
-  private executeScan(backendPath: string, workspacePath: string, reportPath: string): Promise<void> {
+  private executeScan(
+    backendPath: string,
+    workspacePath: string,
+    reportPath: string
+  ): Promise<{ exitCode: number; semgrepPath?: string; gitleaksPath?: string }> {
     const args = ["scan", workspacePath, "--json-out", reportPath];
     const command = formatCommand(backendPath, args);
-    const env = this.buildBackendEnvironment();
+    const environment = this.buildBackendEnvironment();
 
     return new Promise((resolve, reject) => {
       childProcess.execFile(
@@ -89,14 +117,18 @@ export class BackendRunner {
         args,
         {
           cwd: workspacePath,
-          env,
+          env: environment.env,
           windowsHide: true,
           timeout: 10 * 60 * 1000
         },
         (error, stdout, stderr) => {
           const exitCode = getExitCode(error);
           if (exitCode === 0 || exitCode === 1) {
-            resolve();
+            resolve({
+              exitCode,
+              semgrepPath: environment.semgrepPath,
+              gitleaksPath: environment.gitleaksPath
+            });
             return;
           }
 
@@ -123,24 +155,92 @@ export class BackendRunner {
     });
   }
 
-  private buildBackendEnvironment(): NodeJS.ProcessEnv {
+  private buildBackendEnvironment(): {
+    env: NodeJS.ProcessEnv;
+    semgrepPath?: string;
+    gitleaksPath?: string;
+  } {
     const env = { ...process.env };
-    const semgrepPath = this.resolveBundledSemgrepExecutablePath();
-    if (!semgrepPath) {
-      return env;
+    const pathEntries: string[] = [];
+    let semgrepPath: string | undefined;
+    let gitleaksPath: string | undefined;
+
+    const bundledTools = [
+      {
+        key: "semgrep",
+        executablePath: this.resolveBundledSemgrepExecutablePath(),
+        variables: ["DEVSECOPS_AGENT_SEMGREP_PATH", "SEMGREP_PATH"]
+      },
+      {
+        key: "gitleaks",
+        executablePath: this.resolveBundledGitleaksExecutablePath(),
+        variables: ["DEVSECOPS_AGENT_GITLEAKS_PATH", "GITLEAKS_PATH"]
+      }
+    ];
+
+    for (const bundledTool of bundledTools) {
+      if (!bundledTool.executablePath || !fsSync.existsSync(bundledTool.executablePath)) {
+        continue;
+      }
+
+      for (const variableName of bundledTool.variables) {
+        env[variableName] = bundledTool.executablePath;
+      }
+
+      pathEntries.push(path.dirname(bundledTool.executablePath));
+      if (bundledTool.key === "semgrep") {
+        semgrepPath = bundledTool.executablePath;
+      }
+
+      if (bundledTool.key === "gitleaks") {
+        gitleaksPath = bundledTool.executablePath;
+      }
     }
 
-    env.DEVSECOPS_AGENT_SEMGREP_PATH = semgrepPath;
-    env.SEMGREP_PATH = semgrepPath;
-    env.PATH = prependPath(path.dirname(semgrepPath), env.PATH);
-    return env;
+    env.PATH = prependPaths(pathEntries, env.PATH);
+    return { env, semgrepPath, gitleaksPath };
   }
 
-  private async readReport(reportPath: string): Promise<ScanReport> {
+  private resolveBundledToolExecutablePath(toolName: string, executableBaseName: string): string | undefined {
+    const platformFolder = this.platformFolderName();
+    if (!platformFolder) {
+      return undefined;
+    }
+
+    return path.join(
+      this.extensionContext.extensionPath,
+      "backend",
+      toolName,
+      platformFolder,
+      this.executableFileName(executableBaseName)
+    );
+  }
+
+  private platformFolderName(): "win" | "mac" | "linux" | undefined {
+    if (process.platform === "win32") {
+      return "win";
+    }
+
+    if (process.platform === "darwin") {
+      return "mac";
+    }
+
+    if (process.platform === "linux") {
+      return "linux";
+    }
+
+    return undefined;
+  }
+
+  private executableFileName(baseName: string): string {
+    return process.platform === "win32" ? `${baseName}.exe` : baseName;
+  }
+
+  private async readReport(reportPath: string): Promise<Omit<ScanReport, "reportPath" | "backendPath" | "semgrepPath" | "gitleaksPath" | "exitCode">> {
     try {
       const raw = await fs.readFile(reportPath, "utf8");
       const parsed = JSON.parse(raw) as unknown;
-      return { findings: normalizeFindings(parsed) };
+      return normalizeReport(parsed);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       throw new BackendRunnerError(`DevSecOps Agent JSON report could not be read from ${reportPath}. ${detail}`);
@@ -160,6 +260,25 @@ function normalizeFindings(report: unknown): Finding[] {
   return [];
 }
 
+function normalizeReport(
+  report: unknown
+): Omit<ScanReport, "reportPath" | "backendPath" | "semgrepPath" | "gitleaksPath" | "exitCode"> {
+  const findings = normalizeFindings(report);
+  if (!isRecord(report)) {
+    return {
+      findings,
+      totalFindings: findings.length,
+      scannerExecutions: []
+    };
+  }
+
+  return {
+    findings,
+    totalFindings: numberValue(report.total_findings) ?? findings.length,
+    scannerExecutions: normalizeScannerExecutions(report.scanner_executions)
+  };
+}
+
 function normalizeFinding(value: unknown): Finding {
   if (!isRecord(value)) {
     return { title: "Untitled finding", severity: "unknown" };
@@ -170,6 +289,8 @@ function normalizeFinding(value: unknown): Finding {
   const filePath =
     stringValue(value.file_path) ?? stringValue(value.filePath) ?? stringValue(value.file) ?? stringValue(value.path);
   const line = numberValue(value.line_number) ?? numberValue(value.line) ?? numberValue(value.startLine);
+  const description = stringValue(value.description) ?? stringValue(value.message);
+  const recommendation = stringValue(value.recommendation);
 
   return {
     id,
@@ -179,12 +300,41 @@ function normalizeFinding(value: unknown): Finding {
     scanner,
     scanner_name: scanner,
     category: stringValue(value.category) ?? stringValue(value.ruleId),
+    description,
+    recommendation,
     filePath,
     file_path: filePath,
     line,
     line_number: line,
-    message: stringValue(value.message) ?? stringValue(value.description)
+    message: description
   };
+}
+
+function normalizeScannerExecutions(value: unknown): ScannerExecution[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const executions: ScannerExecution[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) {
+      continue;
+    }
+
+    const scannerName = stringValue(item.scanner_name) ?? stringValue(item.scanner);
+    if (!scannerName) {
+      continue;
+    }
+
+    executions.push({
+      scannerName,
+      status: stringValue(item.status) ?? "unknown",
+      command: stringValue(item.command),
+      message: stringValue(item.message)
+    });
+  }
+
+  return executions;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -237,6 +387,12 @@ function snippet(label: string, value: string): string | undefined {
   return `${label}: ${text.slice(0, 800)}`;
 }
 
-function prependPath(entry: string, currentPath: string | undefined): string {
-  return currentPath ? `${entry}${path.delimiter}${currentPath}` : entry;
+function prependPaths(entries: string[], currentPath: string | undefined): string {
+  const uniqueEntries = Array.from(new Set(entries.filter(Boolean)));
+  if (uniqueEntries.length === 0) {
+    return currentPath ?? "";
+  }
+
+  const prefix = uniqueEntries.join(path.delimiter);
+  return currentPath ? `${prefix}${path.delimiter}${currentPath}` : prefix;
 }

@@ -10,3 +10,7 @@ out/
 *.vsix
 
 
+
+# Generated scan reports
+reports/*.json
+reports/*.sarif
