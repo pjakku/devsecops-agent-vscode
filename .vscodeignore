@@ -4,3 +4,13 @@ src/**
 node_modules/**
 *.map
 tsconfig.json
+reports/**
+*.vsix
+.git/**
+.github/**
+.vscode/**
+node_modules/**
+.gitignore
+**/.gitkeep
+**/*.map
+out/**/*.map

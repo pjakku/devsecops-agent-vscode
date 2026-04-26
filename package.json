@@ -1,14 +1,33 @@
 {
   "name": "devsecops-agent-vscode",
   "displayName": "DevSecOps Agent",
-  "description": "VS Code extension MVP for running DevSecOps Agent workspace scans.",
-  "version": "0.4.0",
-  "publisher": "hhs-technology-group",
+  "description": "A lightweight DevSecOps scanning extension for SAST, secrets, script, Kubernetes, config, and dependency findings.",
+  "version": "0.4.1",
+  "publisher": "praveenjakku",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pjakku/devsecops-agent-vscode.git"
+  },
+  "homepage": "https://github.com/pjakku/devsecops-agent-vscode#readme",
+  "bugs": {
+    "url": "https://github.com/pjakku/devsecops-agent-vscode/issues"
+  },
   "engines": {
     "vscode": "^1.88.0"
   },
   "categories": [
     "Other"
+  ],
+  "keywords": [
+    "devsecops",
+    "security",
+    "sast",
+    "secrets",
+    "semgrep",
+    "gitleaks",
+    "kubernetes",
+    "vulnerability scanning"
   ],
   "activationEvents": [
     "onView:devsecopsAgent.results",
@@ -148,17 +167,17 @@
         {
           "command": "devsecopsAgent.showOnlySemgrepFindings",
           "when": "view == devsecopsAgent.results",
-          "group": "inline@1"
+          "group": "filters@1"
         },
         {
           "command": "devsecopsAgent.showSecrets",
           "when": "view == devsecopsAgent.results",
-          "group": "inline@2"
+          "group": "filters@2"
         },
         {
           "command": "devsecopsAgent.showScript",
           "when": "view == devsecopsAgent.results",
-          "group": "inline@3"
+          "group": "filters@3"
         },
         {
           "command": "devsecopsAgent.showManifest",

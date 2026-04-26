@@ -14,3 +14,7 @@ out/
 # Generated scan reports
 reports/*.json
 reports/*.sarif
+
+
+**/*.map
+out/**/*.map
