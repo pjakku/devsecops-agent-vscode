@@ -1,5 +1,4 @@
 import * as childProcess from "child_process";
-import * as fsSync from "fs";
 import * as fs from "fs/promises";
 import * as os from "os";
 import * as path from "path";
@@ -37,8 +36,6 @@ export interface ScanReport {
   scannerExecutions: ScannerExecution[];
   reportPath: string;
   backendPath: string;
-  semgrepPath?: string;
-  gitleaksPath?: string;
   exitCode: number;
 }
 
@@ -65,8 +62,6 @@ export class BackendRunner {
       ...report,
       reportPath,
       backendPath,
-      semgrepPath: execution.semgrepPath,
-      gitleaksPath: execution.gitleaksPath,
       exitCode: execution.exitCode
     };
   }
@@ -84,14 +79,6 @@ export class BackendRunner {
     return path.join(this.extensionContext.extensionPath, "backend", this.executableFileName("devsecops-agent"));
   }
 
-  resolveBundledSemgrepExecutablePath(): string | undefined {
-    return this.resolveBundledToolExecutablePath("semgrep", "semgrep");
-  }
-
-  resolveBundledGitleaksExecutablePath(): string | undefined {
-    return this.resolveBundledToolExecutablePath("gitleaks", "gitleaks");
-  }
-
   private async ensureBackendExists(backendPath: string): Promise<void> {
     try {
       await fs.access(backendPath);
@@ -106,10 +93,9 @@ export class BackendRunner {
     backendPath: string,
     workspacePath: string,
     reportPath: string
-  ): Promise<{ exitCode: number; semgrepPath?: string; gitleaksPath?: string }> {
+  ): Promise<{ exitCode: number }> {
     const args = ["scan", workspacePath, "--json-out", reportPath];
     const command = formatCommand(backendPath, args);
-    const environment = this.buildBackendEnvironment();
 
     return new Promise((resolve, reject) => {
       childProcess.execFile(
@@ -117,18 +103,13 @@ export class BackendRunner {
         args,
         {
           cwd: workspacePath,
-          env: environment.env,
           windowsHide: true,
           timeout: 10 * 60 * 1000
         },
         (error, stdout, stderr) => {
           const exitCode = getExitCode(error);
           if (exitCode === 0 || exitCode === 1) {
-            resolve({
-              exitCode,
-              semgrepPath: environment.semgrepPath,
-              gitleaksPath: environment.gitleaksPath
-            });
+            resolve({ exitCode });
             return;
           }
 
@@ -155,88 +136,11 @@ export class BackendRunner {
     });
   }
 
-  private buildBackendEnvironment(): {
-    env: NodeJS.ProcessEnv;
-    semgrepPath?: string;
-    gitleaksPath?: string;
-  } {
-    const env = { ...process.env };
-    const pathEntries: string[] = [];
-    let semgrepPath: string | undefined;
-    let gitleaksPath: string | undefined;
-
-    const bundledTools = [
-      {
-        key: "semgrep",
-        executablePath: this.resolveBundledSemgrepExecutablePath(),
-        variables: ["DEVSECOPS_AGENT_SEMGREP_PATH", "SEMGREP_PATH"]
-      },
-      {
-        key: "gitleaks",
-        executablePath: this.resolveBundledGitleaksExecutablePath(),
-        variables: ["DEVSECOPS_AGENT_GITLEAKS_PATH", "GITLEAKS_PATH"]
-      }
-    ];
-
-    for (const bundledTool of bundledTools) {
-      if (!bundledTool.executablePath || !fsSync.existsSync(bundledTool.executablePath)) {
-        continue;
-      }
-
-      for (const variableName of bundledTool.variables) {
-        env[variableName] = bundledTool.executablePath;
-      }
-
-      pathEntries.push(path.dirname(bundledTool.executablePath));
-      if (bundledTool.key === "semgrep") {
-        semgrepPath = bundledTool.executablePath;
-      }
-
-      if (bundledTool.key === "gitleaks") {
-        gitleaksPath = bundledTool.executablePath;
-      }
-    }
-
-    env.PATH = prependPaths(pathEntries, env.PATH);
-    return { env, semgrepPath, gitleaksPath };
-  }
-
-  private resolveBundledToolExecutablePath(toolName: string, executableBaseName: string): string | undefined {
-    const platformFolder = this.platformFolderName();
-    if (!platformFolder) {
-      return undefined;
-    }
-
-    return path.join(
-      this.extensionContext.extensionPath,
-      "backend",
-      toolName,
-      platformFolder,
-      this.executableFileName(executableBaseName)
-    );
-  }
-
-  private platformFolderName(): "win" | "mac" | "linux" | undefined {
-    if (process.platform === "win32") {
-      return "win";
-    }
-
-    if (process.platform === "darwin") {
-      return "mac";
-    }
-
-    if (process.platform === "linux") {
-      return "linux";
-    }
-
-    return undefined;
-  }
-
   private executableFileName(baseName: string): string {
     return process.platform === "win32" ? `${baseName}.exe` : baseName;
   }
 
-  private async readReport(reportPath: string): Promise<Omit<ScanReport, "reportPath" | "backendPath" | "semgrepPath" | "gitleaksPath" | "exitCode">> {
+  private async readReport(reportPath: string): Promise<Omit<ScanReport, "reportPath" | "backendPath" | "exitCode">> {
     try {
       const raw = await fs.readFile(reportPath, "utf8");
       const parsed = JSON.parse(raw) as unknown;
@@ -262,7 +166,7 @@ function normalizeFindings(report: unknown): Finding[] {
 
 function normalizeReport(
   report: unknown
-): Omit<ScanReport, "reportPath" | "backendPath" | "semgrepPath" | "gitleaksPath" | "exitCode"> {
+): Omit<ScanReport, "reportPath" | "backendPath" | "exitCode"> {
   const findings = normalizeFindings(report);
   if (!isRecord(report)) {
     return {
@@ -385,14 +289,4 @@ function snippet(label: string, value: string): string | undefined {
   }
 
   return `${label}: ${text.slice(0, 800)}`;
-}
-
-function prependPaths(entries: string[], currentPath: string | undefined): string {
-  const uniqueEntries = Array.from(new Set(entries.filter(Boolean)));
-  if (uniqueEntries.length === 0) {
-    return currentPath ?? "";
-  }
-
-  const prefix = uniqueEntries.join(path.delimiter);
-  return currentPath ? `${prefix}${path.delimiter}${currentPath}` : prefix;
 }

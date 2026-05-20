@@ -2,7 +2,7 @@
   "name": "devsecops-agent-vscode",
   "displayName": "DevSecOps Agent",
   "description": "A lightweight DevSecOps scanning extension for SAST, secrets, script, Kubernetes, config, and dependency findings.",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "publisher": "praveenjakku",
   "license": "MIT",
   "repository": {

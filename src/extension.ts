@@ -172,8 +172,6 @@ function logScanReport(output: vscode.OutputChannel, report: import("./backendRu
   output.appendLine(`Backend executable: ${report.backendPath}`);
   output.appendLine(`JSON report path: ${report.reportPath}`);
   output.appendLine(`Backend exit code: ${report.exitCode}`);
-  output.appendLine(`Bundled Semgrep path: ${report.semgrepPath ?? "not provided"}`);
-  output.appendLine(`Bundled Gitleaks path: ${report.gitleaksPath ?? "not provided"}`);
   output.appendLine(`Total findings: ${report.totalFindings}`);
 
   if (report.scannerExecutions.length > 0) {

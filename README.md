@@ -15,11 +15,11 @@ The extension exposes:
 - `DevSecOps Agent: Show Only Dependency Findings`
 - A native sidebar Tree View named `DevSecOps Agent`
 
-Workspace scans are run through the bundled `devsecops-agent` backend. Results are shown in the Explorer Tree View, grouped by severity. Clicking a finding opens the referenced file and navigates to the finding line when one is available.
+Workspace scans are run through the bundled `devsecops-agent` backend executable. Results are shown in the Explorer Tree View, grouped by severity. Clicking a finding opens the referenced file and navigates to the finding line when one is available.
 
 The `DevSecOps Agent` results view appears in the Explorer sidebar.
 
-The extension runs the bundled `devsecops-agent` backend. Internal findings come from the built-in agent scanners, and SAST findings are powered by Semgrep when available.
+The extension runs the bundled `devsecops-agent` backend. Internal findings come from the built-in DevSecOps scanners. External tools such as Semgrep and Gitleaks are optional. The backend uses them only when they are installed on the user system and available on `PATH`. If they are missing, scans continue with the built-in DevSecOps scanners and the backend reports those external scanners as skipped.
 
 Current filters:
 
@@ -53,28 +53,13 @@ The UI does not launch the backend directly. Backend execution is isolated in:
 src/backendRunner.ts
 ```
 
-For the MVP, the runner expects a future bundled executable under:
+The extension expects the bundled backend executable under:
 
 ```text
 backend/devsecops-agent.exe
 ```
 
-On Windows, bundled external scanners can live at:
-
-```text
-backend/semgrep/win/semgrep.exe
-backend/gitleaks/win/gitleaks.exe
-```
-
-Planned future layout:
-
-```text
-backend/devsecops-agent
-backend/semgrep/mac/semgrep
-backend/semgrep/linux/semgrep
-backend/gitleaks/mac/gitleaks
-backend/gitleaks/linux/gitleaks
-```
+The extension does not bundle or resolve Semgrep or Gitleaks sidecar binaries. If those tools are installed on the user system and available on `PATH`, the backend can use them. If they are missing, scans still complete successfully with the built-in DevSecOps scanners only, and the backend reports them as skipped in scanner status.
 
 The backend runner currently prepares a temp JSON report path and executes:
 
@@ -86,19 +71,15 @@ After execution, it reads the generated JSON report and normalizes findings for 
 
 Backend exit code `1` means the scan completed and violated the backend fail threshold. The extension treats exit codes `0` and `1` as completed scans and loads the JSON report in both cases.
 
-When bundled Semgrep or Gitleaks executables are present, the extension passes their paths to the backend through the scan process environment and prepends their folders to the child process `PATH`. This lets SAST and secret scanning run from the extension package without requiring users to install those tools separately.
-
 Troubleshooting:
 
-- Confirm bundled Gitleaks exists at `backend/gitleaks/win/gitleaks.exe`
-- Confirm bundled Semgrep exists at `backend/semgrep/win/semgrep.exe`
 - Open the `DevSecOps Agent` output channel to see:
   - backend executable path
   - JSON report path
-  - Semgrep path used
-  - Gitleaks path used
   - backend exit code
   - scanner execution statuses
+  - backend-provided skip messages for scanners that are unavailable
+- If Semgrep or Gitleaks are not installed on the user system, they should appear as skipped in scanner status rather than causing the extension scan to fail.
 
 ## Where To Change Backend Path Resolution Later
 
@@ -117,11 +98,9 @@ package.json              VS Code manifest, commands, Tree View contributions
 tsconfig.json             TypeScript compiler settings
 resources/                Extension activity bar icon
 src/extension.ts          Extension activation, commands, and editor navigation
-src/backendRunner.ts      Workspace detection, backend/tool path resolution, execution, JSON loading
+src/backendRunner.ts      Workspace detection, backend execution, JSON loading
 src/findingsProvider.ts   Native Tree View provider, grouping, and filter logic
 backend/                  Future bundled backend executable location
-backend/semgrep/win/      Future bundled Windows Semgrep executable location
-backend/gitleaks/win/     Future bundled Windows Gitleaks executable location
 ```
 
 ## Run In Extension Development Host
